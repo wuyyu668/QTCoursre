@@ -1,0 +1,8 @@
+release/
+debug/
+.qtc_clangd/
+Makefile
+Makefile.*
+*.o
+*.obj
+*.exe
