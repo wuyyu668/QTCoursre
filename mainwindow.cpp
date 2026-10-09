@@ -78,14 +78,105 @@ MainWindow::MainWindow(QWidget *parent) :
     labStudID=new QLabel("学生ID：",this);
     labStudID->setMinimumWidth(200);
 
+    labStudHome=new QLabel("学生籍贯：",this);   //显示选中学生的籍贯信息
+    labStudHome->setMinimumWidth(150);
+
     ui->statusBar->addWidget(labCellIndex); //添加到状态栏
     ui->statusBar->addWidget(labCellType);
     ui->statusBar->addWidget(labStudID);
+    ui->statusBar->addWidget(labStudHome);
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+
+//工具栏"设置学生名单"按钮(QToolButton)的槽函数: 点击后重新设置右侧tableWidget的学生名单
+void MainWindow::on_actSetStudentList_triggered()
+{
+    //1) 设置表头: 学号,姓名,性别,行政班级,院系,专业,修读性质
+    QStringList headerText;
+    headerText<<"学号"<<"姓名"<<"性别"<<"行政班级"<<"院系"<<"专业"<<"修读性质";
+    ui->tableInfo->clearContents();             //只清除工作区数据,不影响表头
+    ui->tableInfo->setColumnCount(headerText.size());   //设置表格列数
+    for (int i=0;i<ui->tableInfo->columnCount();i++)
+    {
+        QTableWidgetItem *headerItem=new QTableWidgetItem(headerText.at(i));
+        QFont font=headerItem->font();          //获取原有字体设置
+        font.setBold(true);                     //设置为粗体
+        font.setPointSize(11);                  //字体大小
+        headerItem->setForeground(QBrush(Qt::red));   //设置文字颜色
+        headerItem->setFont(font);              //设置字体
+        ui->tableInfo->setHorizontalHeaderItem(i,headerItem);   //设置表头单元格的item
+    }
+
+    //2) 学生数据: 学号,姓名,性别,行政班级,院系,专业,修读性质,籍贯
+    //   第一张图片中"袁潮城(2024414290240)"为第3行, 取它前两行(邢福,许沣睿)和后两行(张庆升,赵阳),共5行
+    struct StuInfo
+    {
+        QString no, name, sex, cls, dept, major, nature, home;
+    };
+    QList<StuInfo> stuList;
+    stuList<<StuInfo{"2024414290238","邢福","男","2024软件2班","计算机科学与技术学院","软件工程","初修","广东梅州"}
+           <<StuInfo{"2024414290239","许沣睿","男","2024软件2班","计算机科学与技术学院","软件工程","初修","广东汕头"}
+           <<StuInfo{"2024414290240","袁潮城","男","2024软件2班","计算机科学与技术学院","软件工程","初修","广东东莞"}
+           <<StuInfo{"2024414290241","张庆升","男","2024软件2班","计算机科学与技术学院","软件工程","初修","山东济南"}
+           <<StuInfo{"2024414290242","赵阳","男","2024软件2班","计算机科学与技术学院","软件工程","初修","河南郑州"};
+
+    ui->tableInfo->setRowCount(stuList.size());   //设置数据区行数
+    for (int r=0;r<stuList.size();r++)
+    {
+        const StuInfo &s=stuList.at(r);
+
+        //学号
+        QTableWidgetItem *item=new QTableWidgetItem(s.no);
+        item->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+        ui->tableInfo->setItem(r,colNo,item);
+
+        //姓名: 在item中关联学生籍贯信息(存到Qt::UserRole),供状态栏显示
+        item=new QTableWidgetItem(s.name);
+        item->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+        item->setData(Qt::UserRole,QVariant(s.home));   //籍贯存入姓名item
+        ui->tableInfo->setItem(r,colStuName,item);
+
+        //性别
+        item=new QTableWidgetItem(s.sex);
+        item->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+        ui->tableInfo->setItem(r,colStuSex,item);
+
+        //行政班级
+        item=new QTableWidgetItem(s.cls);
+        item->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+        ui->tableInfo->setItem(r,colStuClass,item);
+
+        //院系
+        item=new QTableWidgetItem(s.dept);
+        item->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+        ui->tableInfo->setItem(r,colStuDept,item);
+
+        //专业
+        item=new QTableWidgetItem(s.major);
+        item->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+        ui->tableInfo->setItem(r,colStuMajor,item);
+
+        //修读性质
+        item=new QTableWidgetItem(s.nature);
+        item->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+        ui->tableInfo->setItem(r,colStuNature,item);
+    }
+
+    //3) 自己(袁潮城)的学号、姓名单元格设置粗体、红色字体
+    int myRow=2;   //袁潮城在第3行(下标2)
+    QFont boldFont=ui->tableInfo->item(myRow,colNo)->font();
+    boldFont.setBold(true);
+    boldFont.setPointSize(12);
+    QBrush redBrush(Qt::red);
+    ui->tableInfo->item(myRow,colNo)->setFont(boldFont);
+    ui->tableInfo->item(myRow,colNo)->setForeground(redBrush);
+    ui->tableInfo->item(myRow,colStuName)->setFont(boldFont);
+    ui->tableInfo->item(myRow,colStuName)->setForeground(redBrush);
 }
 
 
@@ -198,6 +289,9 @@ void MainWindow::on_tableInfo_currentCellChanged(int currentRow, int currentColu
     Q_UNUSED(previousRow);
     Q_UNUSED(previousColumn);
 
+    if (currentRow<0 || currentColumn<0)   //表格被清空等情况,防止越界
+        return;
+
     QTableWidgetItem* item=ui->tableInfo->item(currentRow,currentColumn); //获取单元格的Item
     if  (item==nullptr)
         return;
@@ -207,9 +301,25 @@ void MainWindow::on_tableInfo_currentCellChanged(int currentRow, int currentColu
     int cellType=item->type();      //获取单元格的类型
     labCellType->setText(QString::asprintf("当前单元格类型：%d",cellType));
 
-    item=ui->tableInfo->item(currentRow,MainWindow::colName);   //取当前行第1列的单元格的item
-    uint ID=item->data(Qt::UserRole).toUInt();        //读取用户数据
-    labStudID->setText(QString::asprintf("学生ID：%d",ID));      //学生ID
+    //显示学号: 学生名单表中第0列直接存学号文本; 原始表中姓名列存了学号UserRole数据
+    item=ui->tableInfo->item(currentRow,colNo);
+    if (item && !item->text().isEmpty())
+        labStudID->setText(QString("学生ID：%1").arg(item->text()));
+    else
+    {
+        item=ui->tableInfo->item(currentRow,MainWindow::colName);   //取当前行姓名列的item
+        if (item)
+            labStudID->setText(QString("学生ID：%1").arg(item->data(Qt::UserRole).toUInt()));  //读取用户数据
+        else
+            labStudID->setText("学生ID：");
+    }
+
+    //显示籍贯: 学生名单表中,姓名item的Qt::UserRole里存了学生籍贯信息
+    QTableWidgetItem* nameItem=ui->tableInfo->item(currentRow,colStuName);
+    if (nameItem && !nameItem->data(Qt::UserRole).toString().isEmpty())
+        labStudHome->setText("学生籍贯："+nameItem->data(Qt::UserRole).toString());
+    else
+        labStudHome->setText("学生籍贯：");
 }
 
 //插入一行

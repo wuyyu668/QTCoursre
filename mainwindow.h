@@ -20,9 +20,13 @@ private:
     //  各字段在表格中的列号
     enum    FieldColNum{colName=0, colSex,colBirth,colNation,colScore,colPartyM};
 
+    //  工具栏"设置学生名单"按钮生成的表格列号: 学号,姓名,性别,行政班级,院系,专业,修读性质
+    enum    StuColNum{colNo=0, colStuName, colStuSex, colStuClass, colStuDept, colStuMajor, colStuNature};
+
     QLabel  *labCellIndex; //状态栏上用于显示单元格的行号、列号
     QLabel  *labCellType;  //状态栏上用于显示单元格的type
     QLabel  *labStudID;    //状态栏上用于显示单元格的data,
+    QLabel  *labStudHome;  //状态栏上用于显示选中学生的籍贯信息
 
     void    createItemsARow(int rowNo,QString name,QString sex,QDate birth,
                             QString nation,bool isPM,int score); //为某一行创建items
@@ -32,6 +36,8 @@ public:
 
 private slots:
     void on_btnSetHeader_clicked();  //设置表头 按键
+
+    void on_actSetStudentList_triggered(); //工具栏"设置学生名单"按钮: 重新设置右侧表格学生名单
 
     void on_btnSetRows_clicked(); //设置行数 按键
 
