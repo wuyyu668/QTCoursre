@@ -38,10 +38,10 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-// ================= 槽函数（第一阶段：仅完成界面框架与信号连接） =================
+// ================= 数字输入 =================
 void MainWindow::onDigitClicked(int digit)   { appendDigit(digit); }
-void MainWindow::onPointClicked()            { appendPoint(); }
-void MainWindow::onBackspaceClicked()        { backspace(); }
+void MainWindow::onPointClicked()           { appendPoint(); }
+void MainWindow::onBackspaceClicked()       { backspace(); }
 void MainWindow::onClearClicked()           { clearAll(); }
 void MainWindow::onOperatorClicked(const QString &op) { applyOperator(op); }
 void MainWindow::onEqualClicked()           { calculate(); }
@@ -49,12 +49,52 @@ void MainWindow::onPercentClicked()         {}
 
 void MainWindow::appendDigit(int digit)
 {
-    currentText = QString::number(digit);
+    if (hasError) clearAll();
+
+    // 刚按完运算符：切换为第二个操作数输入
+    if (waitingSecond) {
+        currentText = QString::number(digit);
+        waitingSecond = false;
+        updateDisplay();
+        return;
+    }
+
+    // 当前为 0 时直接替换，避免前导零
+    if (currentText == "0")
+        currentText = QString::number(digit);
+    else
+        currentText.append(QString::number(digit));
+
     updateDisplay();
 }
 
-void MainWindow::appendPoint()   {}
-void MainWindow::backspace()     {}
+void MainWindow::appendPoint()
+{
+    if (hasError) clearAll();
+    if (waitingSecond) {
+        currentText = "0.";
+        waitingSecond = false;
+        updateDisplay();
+        return;
+    }
+    // 同一操作数只允许一个小数点
+    if (!currentText.contains('.'))
+        currentText.append('.');
+    updateDisplay();
+}
+
+void MainWindow::backspace()
+{
+    if (hasError) { clearAll(); return; }
+    if (waitingSecond) return;
+    if (currentText.length() <= 1)
+        currentText = "0";
+    else {
+        currentText.chop(1);
+        if (currentText.isEmpty()) currentText = "0";
+    }
+    updateDisplay();
+}
 
 void MainWindow::clearAll()
 {
@@ -67,6 +107,7 @@ void MainWindow::clearAll()
     updateDisplay();
 }
 
+// ================= 运算符与计算（第二阶段占位，后续提交实现） =================
 void MainWindow::applyOperator(const QString &op)
 {
     pendingOp = op;
