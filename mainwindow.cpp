@@ -10,22 +10,20 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    setFixedSize(360, 560);  // 固定窗口大小，避免最大化/拖动时按钮被拉伸变形
 
     // ================= 界面样式表（QSS） =================
     // 深色背景；上方表达式栏灰色小字；主显示屏白色大字；
     // 数字键深灰、清除类中灰、运算符与等号橙色高亮。
-    this->setStyleSheet(
-        "QMainWindow { background-color: #1e1e2e; }"
-        "QLabel#exprLabel { color: #9a9ab0; font-size: 16px; "
-        "qproperty-alignment: AlignRight|AlignVCenter; padding-right: 14px; }"
-        "QLabel#displayLabel { color: #ffffff; font-size: 42px; font-weight: bold; "
-        "qproperty-alignment: AlignRight|AlignVCenter; padding-right: 14px; }"
-        "QPushButton { font-size: 20px; border: none; border-radius: 12px; min-height: 58px; "
-        "color: #ffffff; background-color: #2c2c3e; }"
+    ui->centralwidget->setStyleSheet(
+        "QWidget#centralwidget { background-color: #1e1e2e; }"
+        "QLabel#exprLabel { color: #9a9ab0; font-size: 16px; }"
+        "QLabel#displayLabel { color: #ffffff; font-size: 42px; font-weight: bold; }"
+        "QPushButton { font-size: 20px; color: #ffffff; background-color: #2c2c3e; "
+        "border: none; border-radius: 12px; min-height: 58px; }"
         "QPushButton:hover { background-color: #3d3d52; }"
         "QPushButton:pressed { background-color: #50506a; }"
-        "QPushButton#btnClear, QPushButton#btnBackspace, QPushButton#btnPercent { "
-        "background-color: #555566; }"
+        "QPushButton#btnClear, QPushButton#btnBackspace, QPushButton#btnPercent { background-color: #555566; }"
         "QPushButton#btnPlus, QPushButton#btnMinus, QPushButton#btnMultiply, "
         "QPushButton#btnDivide, QPushButton#btnEqual { background-color: #ff9f0a; font-size: 24px; }"
     );
