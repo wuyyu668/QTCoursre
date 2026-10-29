@@ -238,7 +238,55 @@ void MainWindow::updateDisplay()
         ui->exprLabel->setText(formatNumber(firstOperand) + " " + pendingOp);
 }
 
+// ================= 键盘事件 =================
+// 键盘按下后映射到对应的统一处理函数，与鼠标点击走完全相同的一套逻辑
 void MainWindow::keyPressEvent(QKeyEvent *event)
 {
-    QMainWindow::keyPressEvent(event);
+    switch (event->key()) {
+    case Qt::Key_0: case Qt::Key_1: case Qt::Key_2: case Qt::Key_3:
+    case Qt::Key_4: case Qt::Key_5: case Qt::Key_6: case Qt::Key_7:
+    case Qt::Key_8: case Qt::Key_9:
+        onDigitClicked(event->key() - Qt::Key_0);
+        event->accept();
+        return;
+    case Qt::Key_Period:
+    case Qt::Key_Comma:
+        onPointClicked();
+        event->accept();
+        return;
+    case Qt::Key_Plus:
+        onOperatorClicked("+");
+        event->accept();
+        return;
+    case Qt::Key_Minus:
+        onOperatorClicked("-");
+        event->accept();
+        return;
+    case Qt::Key_Asterisk:
+        onOperatorClicked("×");
+        event->accept();
+        return;
+    case Qt::Key_Slash:
+        onOperatorClicked("÷");
+        event->accept();
+        return;
+    case Qt::Key_Enter:
+    case Qt::Key_Return:
+    case Qt::Key_Equal:
+        onEqualClicked();
+        event->accept();
+        return;
+    case Qt::Key_Backspace:
+        onBackspaceClicked();
+        event->accept();
+        return;
+    case Qt::Key_Escape:
+    case Qt::Key_Delete:
+        onClearClicked();
+        event->accept();
+        return;
+    default:
+        QMainWindow::keyPressEvent(event);
+        return;
+    }
 }
