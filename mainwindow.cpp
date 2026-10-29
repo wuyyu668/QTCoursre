@@ -40,7 +40,7 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-// ================= 数字 / 小数点 / 退格 / 清除 =================
+// ================= 数字输入 =================
 void MainWindow::onDigitClicked(int digit)   { appendDigit(digit); }
 void MainWindow::onPointClicked()           { appendPoint(); }
 void MainWindow::onBackspaceClicked()       { backspace(); }
@@ -50,27 +50,52 @@ void MainWindow::onEqualClicked()           { calculate(); }
 
 void MainWindow::appendDigit(int digit)
 {
+    // 错误状态下先复位，再输入新数字
+    if (hasError) clearAll();
+
+    // 刚按完等号：新数字作为全新操作数开始输入
+    if (justCalculated) {
+        currentText = QString::number(digit);
+        justCalculated = false;
+        waitingSecond = false;
+        updateDisplay();
+        return;
+    }
+
+    // 刚按完运算符：显示屏切换为第二个操作数
     if (waitingSecond) {
         currentText = QString::number(digit);
         waitingSecond = false;
         updateDisplay();
         return;
     }
+
     if (currentText == "0")
         currentText = QString::number(digit);
     else
         currentText.append(QString::number(digit));
+
     updateDisplay();
 }
 
 void MainWindow::appendPoint()
 {
+    if (hasError) clearAll();
+
+    if (justCalculated) {
+        currentText = "0.";
+        justCalculated = false;
+        waitingSecond = false;
+        updateDisplay();
+        return;
+    }
     if (waitingSecond) {
         currentText = "0.";
         waitingSecond = false;
         updateDisplay();
         return;
     }
+    // 同一操作数已存在小数点则忽略，防止 1.2.3
     if (!currentText.contains('.'))
         currentText.append('.');
     updateDisplay();
@@ -78,12 +103,16 @@ void MainWindow::appendPoint()
 
 void MainWindow::backspace()
 {
-    if (waitingSecond) return;
+    if (hasError) { clearAll(); return; }
+    // 等待第二个操作数或刚出结果时不允许退格
+    if (waitingSecond || justCalculated) return;
+
     if (currentText.length() <= 1)
         currentText = "0";
     else {
         currentText.chop(1);
-        if (currentText.isEmpty()) currentText = "0";
+        if (currentText.isEmpty() || currentText == "-")
+            currentText = "0";
     }
     updateDisplay();
 }
@@ -99,11 +128,30 @@ void MainWindow::clearAll()
     updateDisplay();
 }
 
-// ================= 运算符：双操作数状态管理与链式连续运算 =================
+// ================= 运算符 =================
 void MainWindow::applyOperator(const QString &op)
 {
-    // 已有待执行运算符且已输入第二个操作数：先算出中间结果（1+2+3 链式计算）
-    if (!pendingOp.isEmpty() && !waitingSecond) {
+    if (hasError) return;
+
+    // 刚按完等号又按运算符：以上一次结果作为第一个操作数，支持结果基础上连续运算
+    if (justCalculated) {
+        firstOperand = currentText.toDouble();
+        pendingOp = op;
+        waitingSecond = true;
+        justCalculated = false;
+        updateDisplay();
+        return;
+    }
+
+    // 连续按不同运算符：只替换运算符，不重复计算
+    if (waitingSecond) {
+        pendingOp = op;
+        updateDisplay();
+        return;
+    }
+
+    // 已有待执行运算符且已输入第二个操作数：先算中间结果，支持链式连续运算
+    if (!pendingOp.isEmpty()) {
         double second = currentText.toDouble();
         bool ok = true;
         double result = perform(firstOperand, second, pendingOp, ok);
@@ -119,16 +167,10 @@ void MainWindow::applyOperator(const QString &op)
     updateDisplay();
 }
 
-// ================= 等号计算 =================
-void MainWindow::onPercentClicked()
-{
-    double value = currentText.toDouble() / 100.0;
-    currentText = formatNumber(value);
-    updateDisplay();
-}
-
+// ================= 等号 =================
 void MainWindow::calculate()
 {
+    if (hasError) return;
     if (pendingOp.isEmpty()) return;
 
     double second = currentText.toDouble();
@@ -157,6 +199,15 @@ double MainWindow::perform(double a, double b, const QString &op, bool &ok)
     return a;
 }
 
+// ================= 百分号 =================
+void MainWindow::onPercentClicked()
+{
+    if (hasError) return;
+    double value = currentText.toDouble() / 100.0;
+    currentText = formatNumber(value);
+    updateDisplay();
+}
+
 // ================= 结果格式化 =================
 QString MainWindow::formatNumber(double value)
 {
@@ -165,12 +216,19 @@ QString MainWindow::formatNumber(double value)
     return QString::number(value, 'g', 12);
 }
 
+// ================= 错误处理：锁定状态，直到按清除或数字复位 =================
 void MainWindow::showError(const QString &msg)
 {
-    currentText = msg;
-    updateDisplay();
+    currentText  = msg;
+    pendingOp.clear();
+    waitingSecond = false;
+    justCalculated = false;
+    hasError = true;
+    ui->exprLabel->setText("");
+    ui->displayLabel->setText(msg);
 }
 
+// ================= 刷新显示 =================
 void MainWindow::updateDisplay()
 {
     ui->displayLabel->setText(currentText);
