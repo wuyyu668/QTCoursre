@@ -1,6 +1,8 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QKeyEvent>
+#include <QtMath>
+#include <cmath>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -38,46 +40,37 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-// ================= 数字输入 =================
+// ================= 数字 / 小数点 / 退格 / 清除 =================
 void MainWindow::onDigitClicked(int digit)   { appendDigit(digit); }
 void MainWindow::onPointClicked()           { appendPoint(); }
 void MainWindow::onBackspaceClicked()       { backspace(); }
 void MainWindow::onClearClicked()           { clearAll(); }
 void MainWindow::onOperatorClicked(const QString &op) { applyOperator(op); }
 void MainWindow::onEqualClicked()           { calculate(); }
-void MainWindow::onPercentClicked()         {}
 
 void MainWindow::appendDigit(int digit)
 {
-    if (hasError) clearAll();
-
-    // 刚按完运算符：切换为第二个操作数输入
     if (waitingSecond) {
         currentText = QString::number(digit);
         waitingSecond = false;
         updateDisplay();
         return;
     }
-
-    // 当前为 0 时直接替换，避免前导零
     if (currentText == "0")
         currentText = QString::number(digit);
     else
         currentText.append(QString::number(digit));
-
     updateDisplay();
 }
 
 void MainWindow::appendPoint()
 {
-    if (hasError) clearAll();
     if (waitingSecond) {
         currentText = "0.";
         waitingSecond = false;
         updateDisplay();
         return;
     }
-    // 同一操作数只允许一个小数点
     if (!currentText.contains('.'))
         currentText.append('.');
     updateDisplay();
@@ -85,7 +78,6 @@ void MainWindow::appendPoint()
 
 void MainWindow::backspace()
 {
-    if (hasError) { clearAll(); return; }
     if (waitingSecond) return;
     if (currentText.length() <= 1)
         currentText = "0";
@@ -107,26 +99,70 @@ void MainWindow::clearAll()
     updateDisplay();
 }
 
-// ================= 运算符与计算（第二阶段占位，后续提交实现） =================
+// ================= 运算符：双操作数状态管理与链式连续运算 =================
 void MainWindow::applyOperator(const QString &op)
 {
+    // 已有待执行运算符且已输入第二个操作数：先算出中间结果（1+2+3 链式计算）
+    if (!pendingOp.isEmpty() && !waitingSecond) {
+        double second = currentText.toDouble();
+        bool ok = true;
+        double result = perform(firstOperand, second, pendingOp, ok);
+        if (!ok) { showError("除数不能为0"); return; }
+        firstOperand = result;
+        currentText = formatNumber(result);
+    } else {
+        firstOperand = currentText.toDouble();
+    }
+
     pendingOp = op;
     waitingSecond = true;
     updateDisplay();
 }
 
-void MainWindow::calculate() {}
+// ================= 等号计算 =================
+void MainWindow::onPercentClicked()
+{
+    double value = currentText.toDouble() / 100.0;
+    currentText = formatNumber(value);
+    updateDisplay();
+}
 
+void MainWindow::calculate()
+{
+    if (pendingOp.isEmpty()) return;
+
+    double second = currentText.toDouble();
+    bool ok = true;
+    double result = perform(firstOperand, second, pendingOp, ok);
+    if (!ok) { showError("除数不能为0"); return; }
+
+    currentText = formatNumber(result);
+    pendingOp.clear();
+    waitingSecond = true;
+    justCalculated = true;
+    updateDisplay();
+}
+
+// ================= 四则运算核心 =================
 double MainWindow::perform(double a, double b, const QString &op, bool &ok)
 {
     ok = true;
-    Q_UNUSED(a); Q_UNUSED(b); Q_UNUSED(op);
-    return 0.0;
+    if (op == "+") return a + b;
+    if (op == "-") return a - b;
+    if (op == "×") return a * b;
+    if (op == "÷") {
+        if (b == 0.0) { ok = false; return 0.0; }
+        return a / b;
+    }
+    return a;
 }
 
+// ================= 结果格式化 =================
 QString MainWindow::formatNumber(double value)
 {
-    return QString::number(value);
+    if (qFuzzyCompare(value, std::round(value)) && qAbs(value) < 1e15)
+        return QString::number(value, 'f', 0);
+    return QString::number(value, 'g', 12);
 }
 
 void MainWindow::showError(const QString &msg)
@@ -138,7 +174,10 @@ void MainWindow::showError(const QString &msg)
 void MainWindow::updateDisplay()
 {
     ui->displayLabel->setText(currentText);
-    ui->exprLabel->setText(pendingOp);
+    if (pendingOp.isEmpty())
+        ui->exprLabel->setText("");
+    else
+        ui->exprLabel->setText(formatNumber(firstOperand) + " " + pendingOp);
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event)
